@@ -10,13 +10,13 @@ Written from a read-through of `frontend/` (services, models, dashboards, TO_DO 
 | Path | What |
 |---|---|
 | `frontend/` | Angular 19 app ("Clinstra", Angular project name `preclinic-angular`). NgModule-based, **not** standalone. Bootstrap 5 + Angular Material. |
-| `backend/` | Spring Boot **4.1.1**, Java **21**, Maven wrapper. Package `com.preclinic.backend`. Deps: web (`spring-boot-starter-webmvc`), data-jpa, validation, security, actuator, devtools, lombok, **PostgreSQL + Flyway** (H2 removed). Runs on `:8080`, health at `/actuator/health`. No Java code yet beyond `BackendApplication`; the database schema is done (see below). |
+| `backend/` | Spring Boot **4.1.1**, Java **21**, Maven wrapper. Package `com.preclinic.backend`. Deps: web (`spring-boot-starter-webmvc`), data-jpa, validation, security, actuator, devtools, lombok, **PostgreSQL + Flyway** (H2 removed). Runs on `:8080`, health at `/actuator/health`. **The REST API is complete** (118 operations, 310 tests) — see `API-PLAN.md` (plan, rules, frontend cut-over notes) and `docs/API-ENDPOINTS.md`. The Angular frontend has NOT been connected yet. |
 | `frontend/TO_DO_v1..v4.md` | Original feature specs (written as prompts). v1 Patient Profile · v2 Patients/Appointments/Queue/Prescriptions/Follow-ups/Billing/Reports · v3 Medicine Master · v4 Urdu printing + print settings. |
 | `frontend/CLAUDE.md` | Partly **stale** (says no backend, JSON-only data). The real data layer is localStorage-backed services under `src/app/shared/`. Still useful for conventions. |
 
-Local toolchain: JDK 21 (Temurin) at `C:\Users\CURVE\.jdks\jdk-21.0.12.1+1`, `JAVA_HOME` set at user level. Run: `cd backend; .\mvnw.cmd spring-boot:run`. Security is on defaults (generated password for user `user`) — nothing is configured yet.
+Local toolchain: JDK 21 (Temurin) at `C:\Users\CURVE\.jdks\jdk-21.0.12.1+1`, `JAVA_HOME` set at user level. Run: `cd backend; .\mvnw.cmd spring-boot:run`. Security is JWT-based with two roles (see the status section at the end).
 
-**Database (done)**: PostgreSQL 17.9 portable install at `C:\Users\CURVE\.pgsql` (start/stop/psql scripts in `backend/scripts/*.ps1`; db `clinstra`, user/password `clinstra`/`clinstra`, admin `postgres`/`postgres`, dev only). Schema = Flyway migrations in `backend/src/main/resources/db/migration/` V1–V12 (**the source of truth** — never edit an applied migration, add a new V13+). 12 migrations, 41 tables + 3 views, 82 FKs; V12 seeds the default clinic + catalogs/service fees (no users: password hashes are produced by the app). Hibernate runs with `ddl-auto=validate`. The `BackendApplicationTests` context test now needs the local DB running.
+**Database (done)**: PostgreSQL 17.9 portable install at `C:\Users\CURVE\.pgsql` (start/stop/psql scripts in `backend/scripts/*.ps1`; db `clinstra`, user/password `clinstra`/`clinstra`, admin `postgres`/`postgres`, dev only). Schema = Flyway migrations in `backend/src/main/resources/db/migration/` V1–V17 (**the source of truth** — never edit an applied migration, add a new V18+). 17 migrations (V14 theme light logo, V15 Urdu dictionary seed, V16 catalog ordering, V17 medicine search columns), 42 tables + 3 views; V13 added `integration_settings` (WhatsApp/JazzCash/EasyPaisa; secrets stored encrypted by the app, never returned by the API), doctor print-language preference, same-patient composite FKs (visit↔appointment, consultation↔visit, follow_up↔consultation/appointment, invoice↔visit) and DB triggers for payments/invoices (no overpay, no pay on void, payments immutable, invoices voided not deleted); V12 seeds the default clinic + catalogs/service fees (no users: password hashes are produced by the app). Hibernate runs with `ddl-auto=validate`. The `BackendApplicationTests` context test now needs the local DB running.
 
 ---
 
@@ -182,3 +182,13 @@ Stack decisions still open (see §8).
 ## 9. Not read in detail (so treat as unverified)
 
 TO_DO_v2 bodies beyond the section headings and role sections (Patients/Appointments/Queue/Prescriptions/Follow-ups/Billing/Reports are ~11k lines); TO_DO_v3 beyond headings; the bodies of `patient-profile`, `billing`, `follow-ups`, `analytics`, `medicine-master` components; the `print-document.service` HTML templates; settings pages other than their service wiring. Re-read the relevant TO_DO section and component before implementing each backend module.
+
+
+---
+
+## Backend status (as of 2026-10-07)
+
+- **Done:** Spring Boot 4.1.1 / Java 21 API under `/api/v1` — JWT auth, patients, appointments, queue + atomic intake, billing, consultations/prescriptions, medicine master, follow-ups, reports, documents/timeline, settings, translations, audit log, live events (SSE). 310 tests (MockMvc + real PostgreSQL `clinstra_test`, plus real-commit concurrency tests).
+- **Run:** `backend\scripts\pg-start.ps1`, then `backend\mvnw.cmd spring-boot:run`; Swagger UI at http://localhost:8080/swagger-ui.html; dev logins `admin@clinstra.com` (doctor) / `sana.tariq@clinstra.com` (assistant), password `123456`.
+- **Next:** re-point the Angular services at the API one slice at a time (`API-PLAN.md` section 9), starting with Auth and an `environment.ts` with the API base URL + an HTTP interceptor for the bearer token.
+- **Conventions worth knowing:** data layer after identity is SQL-first via `JdbcClient` (not JPA entities); every query is scoped by the clinic id from the JWT; money/number-sequence/uniqueness rules live in the database too (triggers, partial unique indexes); errors are `ProblemDetail` with a stable `code`; Jackson 3 rejects a missing primitive `boolean` in request records (use `Boolean`); to write SQL `escape '\'` inside a normal Java string, type `escape '\\'` (two backslashes; four is a bug, one breaks the string).
