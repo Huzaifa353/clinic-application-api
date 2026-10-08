@@ -1,0 +1,12 @@
+target/
+.git/
+.idea/
+.vscode/
+*.log
+docs/
+scripts/
+HELP.md
+CONTEXT.md
+API-PLAN.md
+Dockerfile
+.dockerignore
