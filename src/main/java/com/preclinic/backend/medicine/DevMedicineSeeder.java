@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -23,11 +23,11 @@ import com.preclinic.backend.user.ClinicRepository;
  * Local-development convenience: loads the small demonstration medicine list the frontend used to
  * carry (16 Pakistani brands, generic names, packs and prices) when the medicine database is empty, so
  * the prescription box has something to search. It is demo data, NOT a verified DRAP registry; a real
- * deployment imports the registry instead. Runs only with {@code clinstra.dev-seed.enabled=true}.
+ * deployment imports the registry instead. Runs with {@code clinstra.dev-seed.enabled=true} or, for installed copies, {@code clinstra.seed-medicines=true}.
  */
 @Component
 @Order(20)
-@ConditionalOnProperty(name = "clinstra.dev-seed.enabled", havingValue = "true")
+@ConditionalOnExpression("${clinstra.dev-seed.enabled:false} or ${clinstra.seed-medicines:false}")
 public class DevMedicineSeeder implements ApplicationRunner {
 
 	private static final Logger log = LoggerFactory.getLogger(DevMedicineSeeder.class);

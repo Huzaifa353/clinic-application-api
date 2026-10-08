@@ -37,7 +37,8 @@ import com.preclinic.backend.common.ProblemJson;
 class SecurityConfig {
 
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtConverter, JdbcClient jdbc)
+	SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtConverter, JdbcClient jdbc,
+			@Value("${clinstra.web.dir:}") String webDir)
 			throws Exception {
 		AuthenticationEntryPoint unauthorized = (request, response, ex) -> ProblemJson.write(response,
 				HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Authentication is required or the token is invalid or expired.");
@@ -48,15 +49,22 @@ class SecurityConfig {
 				.cors(Customizer.withDefaults())
 				.csrf(AbstractHttpConfigurer::disable)
 				.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.authorizeHttpRequests(auth -> auth
+				.authorizeHttpRequests(auth -> {
+					auth
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-						.requestMatchers(HttpMethod.POST, Api.V1 + "/auth/login").permitAll()
 						// EventSource cannot send headers; this route checks a one-time ticket itself.
 						.requestMatchers(HttpMethod.GET, Api.V1 + "/events").permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 						// API documentation (switched off in production by configuration)
 						.requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
-						.anyRequest().authenticated())
+						.requestMatchers(HttpMethod.POST, Api.V1 + "/auth/login").permitAll();
+					if (!webDir.isBlank()) {
+						// installed use: the Angular files and its in-app addresses are public (they hold no data)
+						auth.requestMatchers(request -> "GET".equals(request.getMethod())
+								&& !request.getRequestURI().startsWith(Api.V1) && !request.getRequestURI().startsWith("/actuator")).permitAll();
+					}
+					auth.anyRequest().authenticated();
+				})
 				.oauth2ResourceServer(oauth -> oauth
 						.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter))
 						.authenticationEntryPoint(unauthorized)
