@@ -2,7 +2,7 @@
 
 ## Progress
 
-**The backend API is complete (all 11 phases): 118 operations over 94 paths, 310 automated tests passing, schema = Flyway V1–V17.** Full list: `docs/API-ENDPOINTS.md` (generated); interactive docs: Swagger UI at `/swagger-ui.html` (dev only). Next step is **cutting the Angular frontend over** to this API (section 9).
+**The backend API is complete (all 11 phases): 118 operations over 94 paths, 310 automated tests passing, schema = Flyway V1–V17.** Full list: `docs/API-ENDPOINTS.md` (generated); interactive docs: Swagger UI at `/swagger-ui.html` (dev only). The **Angular frontend cut-over is also complete** — see section 9's progress table and `../FRONTEND-CONNECTION-STATUS.md`.
 
 | Phase | Status |
 |---|---|
@@ -269,10 +269,11 @@ Suggested order, each service keeping its public method names where possible: Au
 | Billing (invoices with server filters/sort/paging, summary cards, receive payment + receipt, void, profile billing tab) | Done — verified in Chrome (`05-billing`). Void is now doctor-only; both roles receive payments. Until the Queue/Intake slice, the Assistant dashboard's "Add to Queue" still adds to the browser queue but saves its invoice through `POST /invoices`. |
 | Queue/Intake, live events, notifications, doctor status | Done — verified in Chrome with an assistant and a doctor browser side by side (`06-queue`): one-call intake (token + visit + invoice + payment + appointment check-in), "already in queue" warning, drag order saved, remove = cancelled (kept in history), doctor-busy refusal, "Patient Called" banner and doctor Away status arriving live. Screens identify a visit by its id (`?visit=`), not the token. **Live stream caveat:** each open tab holds one server connection; browsers allow 6 per server over HTTP/1.1, so serve the app over HTTP/2 in production (the page also closes its stream when it is hidden/unloaded). The consultation screen still saves consultations in the browser until its slice. |
 | Medicines (Medicine Library with server search/filter/sort/paging, add with duplicate warning, edit, deactivate; ranked prescription search and one-step "add unknown medicine") | Done — verified in Chrome (`07-medicines`). The Library's Add/Edit/Deactivate are doctor-only. Usage counts are updated by the server when a consultation is saved, so the browser no longer records usage. |
-| Consultation (+ templates, Prescriptions screen), Follow-ups, Reports | Code complete and compiling; consultation/follow-up flow passed its browser test once (`08-consultation.js`), needs a clean re-confirmation; Reports has no dedicated test yet. See `../FRONTEND-CONNECTION-STATUS.md`. |
-| Documents & patient timeline, Payment/WhatsApp settings | Not started — see `../FRONTEND-CONNECTION-STATUS.md` §4 |
+| Consultation (+ templates, Prescriptions screen), Follow-ups, Reports | Done — verified in Chrome, two clean consecutive runs (`08-consultation.js`), including the Reports screen smoke check. |
+| Documents & patient timeline | Done — verified in Chrome (`10-documents.js`): upload/view/delete (doctor-only delete, 403 for an assistant), server file-type validation (422), the Timeline tab fully server-driven (`GET /patients/{id}/timeline`) with working filters and cross-referenced consultation/payment/document detail, Print Case History off the same feed. |
+| Payment/WhatsApp settings | Done — verified in Chrome (`11-integrations.js`): JazzCash/EasyPaisa/WhatsApp save, secrets never echoed back (only a `...Set` flag), leave-blank-keeps / blank-clears semantics, and the whole page (even reading) is doctor-only, matching the server's `@PreAuthorize` on both GET and PUT — a `RoleGuard` was added to both routing modules to match. |
 
-While slices are in progress the app is deliberately in a mixed state: patients/settings/auth come from the server, the rest still from the browser's storage, so the queue, appointments, billing, history and reports of the old demo data do not line up with server patients until their slices land.
+All ten slices are now on the server. Browser-storage cleanup (dead transitional helpers, unused old medicine-master model types) from `../FRONTEND-CONNECTION-STATUS.md` §4.4 has also been done. Remaining: a decision on the UX follow-ups in §4.5, and the final hardening pass in §4.6 (production build check, backend test re-run, `git init`/commit decision).
 
 ## 10. Not built (deliberately, nothing in the frontend needs it yet)
 
